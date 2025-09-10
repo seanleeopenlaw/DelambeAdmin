@@ -1,0 +1,63 @@
+<style>
+  /* Force remove all height limitations */
+  html, body {
+    height: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  
+  #storybook-root {
+    height: 100vh !important;
+    min-height: 100vh !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  
+  /* Main layout containers */
+  .sidebar-container {
+    height: 100vh !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+  }
+  
+  .panel-container {
+    height: auto !important;
+    min-height: 300px !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Addon panels - remove all height restrictions */
+  .addon-panel {
+    height: auto !important;
+    min-height: 400px !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  
+  /* Controls panel specifically */
+  .addon-controls,
+  .addon-controls-container {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  
+  /* Main content area */
+  .main-container {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  
+  /* Remove any flex restrictions that might cause cropping */
+  div[data-is-storybook="true"] {
+    height: auto !important;
+    max-height: none !important;
+  }
+  
+  /* Force expand all flex containers */
+  .os-content {
+    max-height: none !important;
+  }
+</style>

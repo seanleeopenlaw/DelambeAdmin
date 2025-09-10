@@ -1,0 +1,420 @@
+"use client";
+
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ChevronRight, ChevronDown, Plus, Upload, Download, Eye, 
+  Check, Clock, AlertCircle, User, Calendar, MessageSquare,
+  FileText, MoreHorizontal, GripHorizontal, Folder
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
+import EditableField from '@/components/ui/editable-field';
+import BlurFade from '@/components/ui/blur-fade';
+import { cn } from '@/lib/utils';
+import { mockEditorialData, type FileVersion, type Draft } from '@/lib/mock-data';
+import { itemVariants, staggerContainer } from '@/lib/animations/variants';
+import { getHierarchyColor, getStatusColor } from '@/lib/design-tokens/colors';
+
+interface DraftViewProps {
+  nodeId: string;
+}
+
+const StatusIcon = ({ status }: { status: 'complete' | 'in-progress' | 'not-started' }) => {
+  switch (status) {
+    case 'complete':
+      return <Check className={`h-4 w-4 ${getStatusColor('completed').text}`} />;
+    case 'in-progress':
+      return <Clock className={`h-4 w-4 ${getStatusColor('in-progress').text}`} />;
+    case 'not-started':
+      return <AlertCircle className={`h-4 w-4 ${getStatusColor('not-started').text}`} />;
+  }
+};
+
+const StatusBadge = ({ status }: { status: 'published' | 'unpublished' | 'draft' }) => {
+  const variants = {
+    published: "bg-green-500/10 text-green-500 border-green-500/20",
+    unpublished: "bg-orange-500/10 text-orange-500 border-orange-500/20",
+    draft: "bg-blue-500/10 text-blue-500 border-blue-500/20"
+  };
+  
+  return (
+    <Badge variant="secondary" className={variants[status]}>
+      {status}
+    </Badge>
+  );
+};
+
+const FileVersionCard = ({ 
+  version, 
+  onSelect, 
+  onPreview 
+}: { 
+  version: FileVersion; 
+  onSelect: () => void;
+  onPreview: () => void;
+}) => {
+  const formatFileSize = (bytes: number) => {
+    return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+  };
+
+  const formatFileName = (fileName: string) => {
+    const lastDotIndex = fileName.lastIndexOf('.');
+    if (lastDotIndex === -1) return fileName;
+    
+    const name = fileName.substring(0, lastDotIndex);
+    const extension = fileName.substring(lastDotIndex);
+    
+    // If name is short enough, show full name
+    if (name.length <= 20) return fileName;
+    
+    // Truncate middle: first 15 chars + ... + last 5 chars + extension
+    return `${name.substring(0, 15)}...${name.substring(name.length - 5)}${extension}`;
+  };
+
+  return (
+    <div className={cn(
+      "group p-4 rounded-lg border transition-all duration-200",
+      version.isCurrentlySelected 
+        ? "border-primary/50 bg-primary/5" 
+        : "border-border hover:border-border/60 hover:bg-muted/30"
+    )}>
+      <div className="flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2">
+            <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+            <span className="font-medium text-sm" title={version.fileName}>
+              {formatFileName(version.fileName)}
+            </span>
+            <Badge variant="secondary" className="text-xs">{version.version}</Badge>
+            {version.isLatest && (
+              <Badge className="text-xs bg-green-500/10 text-green-500 border-green-500/20">
+                Latest
+              </Badge>
+            )}
+            {version.isCurrentlySelected && (
+              <Badge className="text-xs bg-primary/10 text-primary border-primary/20">
+                Selected
+              </Badge>
+            )}
+          </div>
+          
+          <div className="text-xs text-muted-foreground space-y-1">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                <User className="h-3 w-3" />
+                {version.uploadedBy}
+              </div>
+              <div className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                {formatDate(version.uploadedAt)}
+              </div>
+              <div>{formatFileSize(version.fileSize)}</div>
+            </div>
+            {version.comment && (
+              <div className="flex items-center gap-1 text-foreground/80">
+                <MessageSquare className="h-3 w-3" />
+                <span className="italic">{version.comment}</span>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={onPreview}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+          {!version.isCurrentlySelected && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="text-xs h-7 px-2"
+              onClick={onSelect}
+            >
+              Select
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ChapterSection = ({ 
+  chapter, 
+  onToggleExpand,
+  onSelectVersion,
+  onUploadFile 
+}: { 
+  chapter: Chapter;
+  onToggleExpand: () => void;
+  onSelectVersion: (versionId: string) => void;
+  onUploadFile: () => void;
+}) => {
+  return (
+    <Card className="transition-all duration-200 hover:shadow-sm">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={onToggleExpand}
+            >
+              {chapter.fileVersions.length > 0 ? (
+                chapter.isExpanded ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )
+              ) : (
+                <div className="h-4 w-4" />
+              )}
+            </Button>
+            
+            <div className="flex items-center gap-2">
+              <StatusIcon status={chapter.status} />
+              <EditableField
+                value={chapter.title}
+                onSave={(value) => console.log('Save chapter title:', value)}
+                className="font-medium"
+              />
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-xs">
+              {chapter.fileVersions.length} files
+            </Badge>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={onUploadFile}
+            >
+              <Upload className="h-3 w-3 mr-1" />
+              Upload
+            </Button>
+            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      
+      <AnimatePresence>
+        {chapter.isExpanded && chapter.fileVersions.length > 0 && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <CardContent className="pt-0">
+              <div className="space-y-3">
+                {chapter.fileVersions.map((version) => (
+                  <FileVersionCard
+                    key={version.id}
+                    version={version}
+                    onSelect={() => onSelectVersion(version.id)}
+                    onPreview={() => console.log('Preview:', version.fileName)}
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {chapter.fileVersions.length === 0 && (
+        <CardContent className="pt-0">
+          <div className="text-center py-8 text-muted-foreground">
+            <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">No files uploaded yet</p>
+            <p className="text-xs mt-1">Click "Upload" to add the first version</p>
+          </div>
+        </CardContent>
+      )}
+    </Card>
+  );
+};
+
+export default function DraftView({ nodeId }: DraftViewProps) {
+  const [draft] = useState<Draft>({
+    id: 'draft-1',
+    name: 'Main Draft',
+    version: 'v3.2',
+    status: 'under_review', // published | draft | under_review
+    lastModified: new Date('2024-01-15'),
+    chapters: [
+      {
+        id: 'chapter-1',
+        title: 'Cultural Considerations in Sentencing',
+        order: 1,
+        status: 'complete',
+        fileVersions: [
+          {
+            id: 'file-1',
+            fileName: 'cultural-considerations-sentencing.docx',
+            version: 'v3.2',
+            uploadedAt: new Date('2024-03-18'),
+            uploadedBy: 'Justice Sarah Mitchell',
+            comment: 'Updated examples and fixed typos',
+            isLatest: true,
+            isCurrentlySelected: true,
+            fileSize: 1200000
+          }
+        ],
+        isExpanded: true
+      },
+      {
+        id: 'chapter-2',
+        title: 'Evidence and Aboriginal Law',
+        order: 2,
+        status: 'in-progress',
+        fileVersions: [
+          {
+            id: 'file-4',
+            fileName: 'evidence-aboriginal-law.docx',
+            version: 'v1.4',
+            uploadedAt: new Date('2024-03-10'),
+            uploadedBy: 'Dr. Robert Chen',
+            comment: 'Initial draft with case studies',
+            isLatest: true,
+            isCurrentlySelected: true,
+            fileSize: 980000
+          }
+        ],
+        isExpanded: false
+      }
+    ],
+    completionPercentage: 75
+  });
+  const [chapters, setChapters] = useState<Chapter[]>(draft.chapters);
+
+  const handleToggleChapterExpand = (chapterId: string) => {
+    setChapters(chapters.map(chapter =>
+      chapter.id === chapterId
+        ? { ...chapter, isExpanded: !chapter.isExpanded }
+        : chapter
+    ));
+  };
+
+  const handleSelectVersion = (chapterId: string, versionId: string) => {
+    setChapters(chapters.map(chapter =>
+      chapter.id === chapterId
+        ? {
+            ...chapter,
+            fileVersions: chapter.fileVersions.map(version => ({
+              ...version,
+              isCurrentlySelected: version.id === versionId
+            }))
+          }
+        : chapter
+    ));
+  };
+
+  const handleAddChapter = () => {
+    const newChapter: Chapter = {
+      id: `chapter-${Date.now()}`,
+      title: 'New Chapter',
+      order: chapters.length + 1,
+      status: 'not-started',
+      fileVersions: [],
+      isExpanded: false
+    };
+    setChapters([...chapters, newChapter]);
+  };
+
+  return (
+    <div className="h-full overflow-auto">
+      <div className="p-6 space-y-6">
+        <BlurFade>
+          <motion.div
+            variants={staggerContainer}
+            initial="hidden"
+            animate="visible"
+            className="space-y-6"
+          >
+            {/* Draft Header */}
+            <motion.div variants={itemVariants}>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Folder className={`h-6 w-6 ${getHierarchyColor('draft').primary}`} />
+                        <EditableField
+                          value={draft.name}
+                          onSave={(value) => console.log('Save draft name:', value)}
+                          className="text-2xl font-bold"
+                        />
+                        <Badge variant="secondary" className="text-sm">
+                          {draft.version}
+                        </Badge>
+                        <StatusBadge status={draft.status} />
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Last modified: {draft.lastModified.toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                  <Progress value={draft.completionPercentage} className="mt-4" />
+                </CardHeader>
+              </Card>
+            </motion.div>
+
+            {/* Chapters Header */}
+            <motion.div variants={itemVariants}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">Chapters</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Manage chapter content and file versions
+                  </p>
+                </div>
+                <Button onClick={handleAddChapter} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Chapter
+                </Button>
+              </div>
+            </motion.div>
+
+            {/* Chapters List */}
+            <motion.div variants={itemVariants} className="space-y-4">
+              {chapters.map((chapter) => (
+                <ChapterSection
+                  key={chapter.id}
+                  chapter={chapter}
+                  onToggleExpand={() => handleToggleChapterExpand(chapter.id)}
+                  onSelectVersion={(versionId) => handleSelectVersion(chapter.id, versionId)}
+                  onUploadFile={() => console.log('Upload file to:', chapter.title)}
+                />
+              ))}
+            </motion.div>
+          </motion.div>
+        </BlurFade>
+      </div>
+    </div>
+  );
+}
