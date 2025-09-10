@@ -330,7 +330,7 @@ export function UploadVersionModal({
                   }
                   className="text-sm hover:bg-primary/90 transition-all duration-200 hover:scale-105 active:scale-95"
                 >
-                  <Upload className="h-4 w-4 mr-2" />
+                  <Upload className="h-4 w-4 mr-1" />
                   Proceed
                 </Button>
               </div>

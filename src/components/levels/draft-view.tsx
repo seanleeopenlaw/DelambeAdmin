@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { ChevronDown, ChevronRight, Upload, Eye, Download } from 'lucide-react';
+import { ChevronDown, ChevronRight, Upload, Eye, Download, FileText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -127,13 +127,16 @@ export default function DraftView({ draftId }: DraftViewProps) {
                         {chapterGroups.map((group) => (
                           <div key={group.id} className="border rounded-lg">
                             {/* Chapter Header */}
-                            <div className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center justify-between p-3 bg-secondary/80 hover:bg-secondary transition-colors rounded-lg">
                               <div 
                                 className="flex-1 min-w-0 cursor-pointer"
                                 onClick={() => toggleChapter(group.id)}
                               >
                                 {/* Title and metadata */}
-                                <div className="font-medium">{group.title}</div>
+                                <div className="text-sm font-medium flex items-center gap-2">
+                                  <FileText className="h-4 w-4 text-muted-foreground" />
+                                  {group.title}
+                                </div>
                                 <div className="text-xs text-muted-foreground mt-1">
                                   {group.versions.length} version{group.versions.length !== 1 ? 's' : ''} • {group.versions.find(v => v.isSelected)?.filename || group.versions[0]?.filename}
                                 </div>
@@ -148,7 +151,7 @@ export default function DraftView({ draftId }: DraftViewProps) {
                                     e.stopPropagation();
                                     setUploadModal({open: true, chapterGroup: group});
                                   }}
-                                  className="text-xs text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/50"
+                                  className="text-xs text-white hover:text-white bg-muted/30 hover:!bg-blue-600 relative z-10 cursor-pointer"
                                 >
                                   <Upload className="h-4 w-4 mr-1" />
                                   New Version

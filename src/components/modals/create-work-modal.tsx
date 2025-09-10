@@ -186,7 +186,7 @@ export function CreateWorkModal({ open, onOpenChange, onSubmit }: CreateWorkModa
         {/* Optional Edition Section - Accordion */}
         <Accordion 
           title="Create Initial Edition" 
-          subtitle="OPTIONAL"
+          subtitle="Optional"
           expanded={includeEdition}
           onExpandedChange={setIncludeEdition}
         >
